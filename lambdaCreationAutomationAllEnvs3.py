@@ -10,20 +10,39 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ENV_INPUTS = {
-    "common": {
-        "region": "us-west-2",
-        "vpc_name": "zen-common-vpc",   # OR vpc_id directly
-    },
-    "uat": {
-        "region": "us-west-2",
-        "vpc_name": "zen-uat-vpc",
-    },
-    "dr": {
-        "region": "us-east-1",
-        "vpc_name": "zen-dr-vpc",
-    }
-}
+STATE_FILE = "env_inputs.json"
+
+def load_state():
+    global ENV_INPUTS
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
+            ENV_INPUTS = json.load(f)
+        print("Loaded ENV_INPUTS from file")
+    else:
+        print("No existing state file found, using defaults")
+
+
+def save_state():
+    with open(STATE_FILE, "w") as f:
+        json.dump(ENV_INPUTS, f, indent=2)
+    print("Saved ENV_INPUTS to file")
+
+
+
+# ENV_INPUTS = {
+#     "common": {
+#         "region": "us-west-2",
+#         "vpc_name": "zen-common-vpc",   # OR vpc_id directly
+#     },
+#     "uat": {
+#         "region": "us-west-2",
+#         "vpc_name": "zen-uat-vpc",
+#     },
+#     "dr": {
+#         "region": "us-east-1",
+#         "vpc_name": "zen-dr-vpc",
+#     }
+# }
 
 COMMON_ENVS = ["dev", "qa", "qa2", "qa3", "perf", "hotfixes", "beta", "prod"]
 
@@ -472,17 +491,21 @@ def main():
     args = parse_args()
     session = boto3.Session(profile_name="Aditya-demo")
 
+    load_state()
+
     if args.phase == "vpc_listing":
         phase_vpc_listing(session)
 
     elif args.phase == "vpc_selection":
         phase_vpc_selection()
+        save_state()
 
     elif args.phase == "subnet_listing":
         phase_subnet_listing(session)
 
     elif args.phase == "subnet_selection":
         phase_subnet_selection()
+        save_state()
         ENV_CONFIG = build_env_config_from_inputs()
         print(json.dumps(ENV_CONFIG, indent=2))
 
