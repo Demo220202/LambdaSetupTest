@@ -469,19 +469,19 @@ def main():
     #
     #     print(json.dumps(ENV_CONFIG, indent=2))
 
-    # args = parse_args()
+    args = parse_args()
     session = boto3.Session(profile_name="Aditya-demo")
 
-    if True: # args.phase == "vpc_listing":
+    if args.phase == "vpc_listing":
         phase_vpc_listing(session)
 
-    if True: # args.phase == "vpc_selection":
+    elif args.phase == "vpc_selection":
         phase_vpc_selection()
 
-    if True: # args.phase == "subnet_listing":
+    elif args.phase == "subnet_listing":
         phase_subnet_listing(session)
 
-    if True: #args.phase == "subnet_selection":
+    elif args.phase == "subnet_selection":
         phase_subnet_selection()
         ENV_CONFIG = build_env_config_from_inputs()
         print(json.dumps(ENV_CONFIG, indent=2))
