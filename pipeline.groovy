@@ -68,7 +68,31 @@ pipeline {
                         ]
                     )
 
-                    env.SUBNET_IDS = subnetIds.toString()
+                    env.COMMON_SUBNETS = subnetIds.toString()
+                }
+
+                script {
+                    def subnetIds = input(
+                        id: 'secondInput',
+                        message: 'Paste the Subnet ids',
+                        parameters: [
+                            text(name: 'SUBNET_IDS', description: 'Enter Subnet ids')
+                        ]
+                    )
+
+                    env.UAT_SUBNETS = subnetIds.toString()
+                }
+
+                script {
+                    def subnetIds = input(
+                        id: 'secondInput',
+                        message: 'Paste the Subnet ids',
+                        parameters: [
+                            text(name: 'SUBNET_IDS', description: 'Enter Subnet ids')
+                        ]
+                    )
+
+                    env.DR_SUBNETS = subnetIds.toString()
                 }
 
                 sh """
