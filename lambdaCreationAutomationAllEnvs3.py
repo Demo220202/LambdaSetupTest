@@ -640,6 +640,8 @@ def main():
         ephemeral_storage = args.ephemeral_storage
 
         layers = args.layers.split() if len(args.layers) > 1 else []
+        print(layers)
+        print(args.layers)
 
         layer_list = []
         for layer_name in layers:
