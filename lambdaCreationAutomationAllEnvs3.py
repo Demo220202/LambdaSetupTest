@@ -79,7 +79,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--enable_reserved-concurrency",
+        "--enable_reserved_concurrency",
         action="store_true",
         help="Enable reserved concurrency"
     )
