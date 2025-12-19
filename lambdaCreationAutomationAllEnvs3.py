@@ -646,6 +646,8 @@ def main():
             layer_arn = get_latest_layer_arn(session, layer_name, region="us-west-2")
             layer_list.append(layer_arn)
 
+        print(layer_list)
+
         role_arn = get_role_arn(session, role_name)
 
         reserved_concurrency = None
