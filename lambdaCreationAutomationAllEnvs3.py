@@ -67,9 +67,9 @@ def parse_args():
     parser.add_argument("--lambda_name", help="Base Lambda name (without env prefix)")
     parser.add_argument("--runtime", help="Lambda runtime (e.g. python3.9)")
     parser.add_argument("--role_name", help="IAM role name for Lambda")
-    parser.add_argument("--memory", type=int, help="Memory size in MB")
-    parser.add_argument("--timeout", type=int, help="Timeout in seconds")
-    parser.add_argument("--ephemeral_storage", type=int, help="Ephemeral storage in MB")
+    parser.add_argument("--memory", help="Memory size in MB")
+    parser.add_argument("--timeout", help="Timeout in seconds")
+    parser.add_argument("--ephemeral_storage", help="Ephemeral storage in MB")
 
     parser.add_argument(
         "--layers",
@@ -86,7 +86,6 @@ def parse_args():
 
     parser.add_argument(
         "--reserved_concurrency",
-        type=int,
         help="Reserved concurrency value"
     )
 
@@ -645,13 +644,15 @@ def main():
 
         reserved_concurrency = None
 
-        if args.enable_reserved_concurrency:
-            if args.reserved_concurrency is None:
+        enable_reserved_concurrency = args.enable_reserved_concurrency == "true"
+
+        if enable_reserved_concurrency:
+            if args.reserved_concurrency is None or args.reserved_concurrency == "":
                 raise ValueError("Reserved concurrency value required when enabled")
 
             reserved_concurrency = {
                 "toggle": True,
-                "val": args.reserved_concurrency
+                "val": int(args.reserved_concurrency)
             }
 
         environments = [
@@ -684,9 +685,9 @@ def main():
                 region=cfg["region"],
                 role_arn=role_arn,
                 runtime=runtime,
-                memory=memory,
-                timeout=timeout,
-                ephemeral_storage=ephemeral_storage,
+                memory=int(memory),
+                timeout=int(timeout),
+                ephemeral_storage=int(ephemeral_storage),
                 vpc_config=vpc_config,
                 layers=layer_list if env != "dr" else [],
                 tags=tags,
