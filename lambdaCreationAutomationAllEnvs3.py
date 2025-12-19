@@ -634,8 +634,10 @@ def main():
         timeout = args.timeout
         ephemeral_storage = args.ephemeral_storage
 
+        layers = args.layers.split() if len(args.layers) > 1 else []
+
         layer_list = []
-        for layer_name in args.layers:
+        for layer_name in layers:
             layer_arn = get_latest_layer_arn(session, layer_name, region="us-west-2")
             layer_list.append(layer_arn)
 
