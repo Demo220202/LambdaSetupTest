@@ -628,6 +628,7 @@ def main():
     if args.phase == "finalize":
 
         save_state()
+        ENV_CONFIG = build_env_config_from_inputs()
 
         print(json.dumps(ENV_CONFIG, indent=2))
 
