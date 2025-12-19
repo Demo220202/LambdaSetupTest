@@ -48,8 +48,48 @@ COMMON_ENVS = ["dev", "qa", "qa2", "qa3", "perf", "hotfixes", "beta", "prod"]
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", required=True)
+    parser = argparse.ArgumentParser(description="Lambda creation automation")
+
+    parser.add_argument(
+        "--phase",
+        required=True,
+        choices=[
+            "vpc_listing",
+            "vpc_selection",
+            "subnet_listing",
+            "subnet_selection",
+            "finalize"
+        ],
+        help="Pipeline execution phase"
+    )
+
+    # ===== finalize phase inputs =====
+    parser.add_argument("--lambda_name", help="Base Lambda name (without env prefix)")
+    parser.add_argument("--runtime", help="Lambda runtime (e.g. python3.9)")
+    parser.add_argument("--role_name", help="IAM role name for Lambda")
+    parser.add_argument("--memory", type=int, help="Memory size in MB")
+    parser.add_argument("--timeout", type=int, help="Timeout in seconds")
+    parser.add_argument("--ephemeral_storage", type=int, help="Ephemeral storage in MB")
+
+    parser.add_argument(
+        "--layers",
+        nargs="*",
+        default=[],
+        help="Lambda layer names (space separated)"
+    )
+
+    parser.add_argument(
+        "--enable_reserved-concurrency",
+        action="store_true",
+        help="Enable reserved concurrency"
+    )
+
+    parser.add_argument(
+        "--reserved_concurrency",
+        type=int,
+        help="Reserved concurrency value"
+    )
+
     return parser.parse_args()
 
 
@@ -379,6 +419,74 @@ def build_env_config_from_inputs():
 #
 #     return env_config
 
+def get_role_arn(session, role_name):
+    iam = session.client("iam")
+
+    try:
+        response = iam.get_role(RoleName=role_name)
+        return response["Role"]["Arn"]
+
+    except iam.exceptions.NoSuchEntityException:
+        raise Exception(f"IAM role '{role_name}' not found")
+
+def wait_for_lambda_update(lambda_client, function_name):
+    waiter = lambda_client.get_waiter("function_updated")
+    waiter.wait(FunctionName=function_name)
+
+def create_or_update_alias(lambda_client, function_name, alias_name="active"):
+    # Publish new version
+    response = lambda_client.publish_version(
+        FunctionName=function_name
+    )
+    version = response["Version"]
+    print(f"Version: {version}")
+
+    try:
+        lambda_client.get_alias(
+            FunctionName=function_name,
+            Name=alias_name
+        )
+
+        lambda_client.update_alias(
+            FunctionName=function_name,
+            Name=alias_name,
+            FunctionVersion=version
+        )
+        print(f"[ALIAS UPDATED] {alias_name} → v{version}")
+
+    except lambda_client.exceptions.ResourceNotFoundException:
+        lambda_client.create_alias(
+            FunctionName=function_name,
+            Name=alias_name,
+            FunctionVersion=version
+        )
+        print(f"[ALIAS CREATED] {alias_name} → v{version}")
+
+
+def get_latest_layer_arn(session, layer_name, region):
+    """
+    Returns the ARN of the latest version of a Lambda Layer.
+    """
+    lambda_client = session.client("lambda", region_name=region)
+
+    try:
+        response = lambda_client.list_layer_versions(
+            LayerName=layer_name
+        )
+
+        if not response.get("LayerVersions"):
+            raise Exception(f"No versions found for layer: {layer_name}")
+
+        # Versions are returned in descending order (latest first)
+        latest_layer = response["LayerVersions"][0]
+        return latest_layer["LayerVersionArn"]
+
+    except lambda_client.exceptions.ResourceNotFoundException:
+        raise Exception(f"Layer not found: {layer_name}")
+
+    except ClientError as e:
+        raise Exception(f"Failed to fetch layer ARN for {layer_name}: {e}")
+
 
 def create_lambda(
     session,
@@ -413,6 +521,8 @@ def create_lambda(
             ZipFile=zip_buffer.read()
         )
 
+        wait_for_lambda_update(lambda_client, lambda_name)
+
         lambda_client.update_function_configuration(
             FunctionName=lambda_name,
             Runtime=runtime,
@@ -423,6 +533,9 @@ def create_lambda(
             VpcConfig=vpc_config if vpc_config else {},
             Layers=layers or [],
         )
+
+        wait_for_lambda_update(lambda_client, lambda_name)
+        create_or_update_alias(lambda_client, lambda_name)
 
     except lambda_client.exceptions.ResourceNotFoundException:
         print(f"[CREATE] {lambda_name}")
@@ -440,6 +553,9 @@ def create_lambda(
             Layers=layers or [],
             Tags=tags or {},
         )
+
+        wait_for_lambda_update(lambda_client, lambda_name)
+        create_or_update_alias(lambda_client, lambda_name)
 
     if reserved_concurrency and reserved_concurrency["toggle"]:
         lambda_client.put_function_concurrency(
@@ -493,6 +609,8 @@ def main():
 
     load_state()
 
+    ENV_CONFIG = {}
+
     if args.phase == "vpc_listing":
         phase_vpc_listing(session)
 
@@ -509,59 +627,71 @@ def main():
         ENV_CONFIG = build_env_config_from_inputs()
         print(json.dumps(ENV_CONFIG, indent=2))
 
-    # if True: # args.phase == "finalize":
-    #
-    #     lambda_initial_name = input("Enter the lambda name to create: ")
-    #
-    #     runtime = input("Enter the lambda runtime to use: ") # python3.9
-    #     role_arn = input("Enter the role ARN to be added: ") #arn:aws:iam::186534707636:role/service-role/test-role
-    #     memory = int(input("Enter the memory used in Gen Config: ")) # 512
-    #     timeout = int(input("Enter the timeout used in Gen Config: ")) # 60
-    #     ephemeral_storage = int(input("Enter the ephemeral memory used in Gen Config: ")) # 1024
-    #     layers_string = input("Enter the layer(s) to be added to the lambda, separated by spaces or leave blank: ")
-    #
-    #     layers = layers_string.split() if len(layers_string) > 1 else []  # optional
-    #
-    #     reserved_concurrency = {"toggle": True, "val": 1}
-    #
-    #     environments = [
-    #         "dev", "qa", "qa2", "qa3", "perf",
-    #         "hotfixes", "beta", "uat", "prod", "dr"
-    #     ]
-    #
-    #     for env in environments:
-    #         cfg = ENV_CONFIG[env]
-    #
-    #         lambda_name = f"zen-{env}-{lambda_initial_name}"
-    #
-    #         sg_id = get_or_create_sg(
-    #             session,
-    #             cfg["region"],
-    #             cfg["vpc_id"],
-    #             lambda_name
-    #         )
-    #
-    #         vpc_config = {
-    #             "SubnetIds": cfg["subnets"],
-    #             "SecurityGroupIds": [sg_id],
-    #         }
-    #
-    #         tags = {"env": f"zenarate/{env}"}
-    #
-    #         create_lambda(
-    #             session=session,
-    #             lambda_name=lambda_name,
-    #             region=cfg["region"],
-    #             role_arn=role_arn,
-    #             runtime=runtime,
-    #             memory=memory,
-    #             timeout=timeout,
-    #             ephemeral_storage=ephemeral_storage,
-    #             vpc_config=vpc_config,
-    #             layers=layers,
-    #             tags=tags,
-    #             reserved_concurrency=reserved_concurrency,
-    #         )
+    if args.phase == "finalize":
+
+        lambda_initial_name = args.lambda_name
+        runtime = args.runtime
+        role_name = args.role_name
+        memory = args.memory
+        timeout = args.timeout
+        ephemeral_storage = args.ephemeral_storage
+
+        layer_list = []
+        for layer_name in args.layers:
+            layer_arn = get_latest_layer_arn(session, layer_name, region="us-west-2")
+            layer_list.append(layer_arn)
+
+        role_arn = get_role_arn(session, role_name)
+
+        reserved_concurrency = None
+
+        if args.enable_reserved_concurrency:
+            if args.reserved_concurrency is None:
+                raise ValueError("Reserved concurrency value required when enabled")
+
+            reserved_concurrency = {
+                "toggle": True,
+                "val": args.reserved_concurrency
+            }
+
+        environments = [
+            "dev", "qa", "qa2", "qa3", "perf",
+            "hotfixes", "beta", "uat", "prod", "dr"
+        ]
+
+        for env in environments:
+            cfg = ENV_CONFIG[env]
+
+            lambda_name = f"zen-{env}-{lambda_initial_name}"
+
+            sg_id = get_or_create_sg(
+                session,
+                cfg["region"],
+                cfg["vpc_id"],
+                lambda_name
+            )
+
+            vpc_config = {
+                "SubnetIds": cfg["subnets"],
+                "SecurityGroupIds": [sg_id],
+            }
+
+            tags = {"env": f"zenarate/{env}"}
+
+            create_lambda(
+                session=session,
+                lambda_name=lambda_name,
+                region=cfg["region"],
+                role_arn=role_arn,
+                runtime=runtime,
+                memory=memory,
+                timeout=timeout,
+                ephemeral_storage=ephemeral_storage,
+                vpc_config=vpc_config,
+                layers=layer_list if env != "dr" else [],
+                tags=tags,
+                reserved_concurrency=reserved_concurrency,
+            )
 
 if __name__ == "__main__":
     main()

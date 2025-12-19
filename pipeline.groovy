@@ -123,8 +123,7 @@ pipeline {
                 dir("lambdaSetupTest") {
                     sh """
                         . venvlambda/bin/activate
-                        python lambdaCreationAutomationAllEnvs3.py \
-                            --phase finalize
+                        python lambdaCreationAutomationAllEnvs3.py --lambda_name '$lambda_name' --runtime '$runtime' --role_name '$role_name' --memory $memory --timeout $timeout --ephemeral_storage $ephemeral_storage --layers '$layers' --enable_reserved_concurrency $enable_reserved_concurrency --reserved_concurrency '$reserved_concurrency' --phase finalize
                     """
                 }
             }
