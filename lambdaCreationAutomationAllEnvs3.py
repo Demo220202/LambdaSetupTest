@@ -627,6 +627,8 @@ def main():
 
     if args.phase == "finalize":
 
+        print(json.dumps(ENV_CONFIG, indent=2))
+
         lambda_initial_name = args.lambda_name
         runtime = args.runtime
         role_name = args.role_name
