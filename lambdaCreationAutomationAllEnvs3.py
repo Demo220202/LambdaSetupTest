@@ -29,20 +29,7 @@ def save_state():
 
 
 
-# ENV_INPUTS = {
-#     "common": {
-#         "region": "us-west-2",
-#         "vpc_name": "zen-common-vpc",   # OR vpc_id directly
-#     },
-#     "uat": {
-#         "region": "us-west-2",
-#         "vpc_name": "zen-uat-vpc",
-#     },
-#     "dr": {
-#         "region": "us-east-1",
-#         "vpc_name": "zen-dr-vpc",
-#     }
-# }
+
 
 COMMON_ENVS = ["dev", "qa", "qa2", "qa3", "perf", "hotfixes", "beta", "prod"]
 
@@ -153,22 +140,7 @@ def phase_subnet_listing(session):
         print(f"\n=== {env.upper()} ===")
         list_subnets(region, vpc_id, session)
 
-# def phase_subnet_selection():
-#     """
-#     Expects:
-#     SUBNET_IDS=subnet-a subnet-b subnet-c
-#     """
-#     subnet_ids = os.environ.get("SUBNET_IDS", "")
-#     if not subnet_ids:
-#         raise Exception("SUBNET_IDS not provided")
-#
-#     subnets = subnet_ids.split()
-#
-#     for env in ["common", "uat", "dr"]:
-#         ENV_INPUTS[env]["subnets"] = subnets
-#
-#     print("Final subnet configuration:")
-#     print(json.dumps(ENV_INPUTS, indent=2))
+
 
 def phase_subnet_selection():
 
@@ -218,204 +190,6 @@ def build_env_config_from_inputs():
 
     return env_config
 
-
-# def fill_vpc_config(session):
-#
-#     common_vpc = dict(select_vpc(ENV_INPUTS["common"]["region"], session))
-#     uat_vpc = dict(select_vpc(ENV_INPUTS["uat"]["region"], session))
-#     dr_vpc = dict(select_vpc(ENV_INPUTS["dr"]["region"], session))
-#
-#
-#     ENV_INPUTS["common"]["vpc_name"] = common_vpc["Name"] if len(common_vpc) > 0 else ENV_INPUTS["common"]["vpc_name"]
-#     ENV_INPUTS["uat"]["vpc_name"] = uat_vpc["Name"] if len(uat_vpc) > 0 else ENV_INPUTS["uat"]["vpc_name"]
-#     ENV_INPUTS["dr"]["vpc_name"] = dr_vpc["Name"] if len(dr_vpc) > 0 else ENV_INPUTS["dr"]["vpc_name"]
-#
-#     return common_vpc, uat_vpc, dr_vpc
-#
-#
-# def select_vpc(region, session):
-#     vpcs = get_vpcs_list(region, session)
-#     if not vpcs:
-#         print(f"No VPCs found in region {region}.")
-#         return None
-#
-#     vpc_names = [f"{vpc['Name']} - ID: {vpc['VpcId']}" for vpc in vpcs]
-#
-#     title = "Select a VPC"
-#     menu = TerminalMenu(
-#         vpc_names,
-#         title=title,
-#         cursor_index=0,
-#         show_search_hint=True,
-#     )
-#
-#     selected_vpc_index = menu.show()
-#     selected_vpc = vpcs[selected_vpc_index]
-#
-#     print(f"{title}: {vpc_names[selected_vpc_index]}")
-#
-#     return selected_vpc
-#
-#
-# def select_vpc_subnets(vpc, session):
-#     subnets = get_vpc_subnets(vpc["VpcId"], vpc["Region"], session)
-#     if not subnets:
-#         print(f"No subnets found in VPC {vpc['Name']}.")
-#         return []
-#
-#     subnet_labels = [
-#         f"{subnet['Name']} - AZ: {subnet['AvailabilityZone']} - Available IPs: {subnet['AvailableIpAddressCount']}"
-#         for subnet in subnets
-#     ]
-#
-#     title = "Select Subnets"
-#     menu = TerminalMenu(
-#         subnet_labels,
-#         title=title,
-#         cursor_index=0,
-#         multi_select=True,
-#         show_search_hint=True,
-#     )
-#
-#     selected_indices = menu.show()
-#
-#     print(f"{title}: {', '.join([subnet_labels[i] for i in selected_indices])}")
-#
-#     return [subnets[i] for i in selected_indices]
-#
-# def resolve_vpc_id(region, vpc_name, session):
-#     vpcs = get_vpcs_list(region, session)
-#     # print(json.dumps(vpcs, indent=2))
-#     #
-#     # fill_vpc_config()
-#     #
-#     # print(json.dumps(ENV_INPUTS, indent=2))
-#
-#     for vpc in vpcs:
-#         if vpc["Name"] == vpc_name:
-#             return vpc["VpcId"]
-#     raise Exception(f"VPC '{vpc_name}' not found in {region}")
-#
-# def resolve_subnet_ids(region, vpc_id, session):
-#
-#     subnets = select_vpc_subnets(vpc_id, session)
-#     subnet_ids = []
-#
-#     if not subnets:
-#         raise Exception(f"No private subnets found for {vpc_id} in {region}")
-#
-#     for subnet in subnets:
-#         subnet_ids.append(subnet["SubnetId"])
-#
-#     return subnet_ids
-#
-#
-# env_config = {}
-#
-# def build_env_config_vpc(session):
-#     # Common VPC for most envs
-#     common_region = ENV_INPUTS["common"]["region"]
-#
-#     # vpcs = get_vpcs_list(common_region, session)
-#     # print(json.dumps(vpcs, indent=2))
-#
-#     common_vpc, uat_vpc, dr_vpc = fill_vpc_config(session)
-#
-#     common_vpc_id = resolve_vpc_id(
-#         common_region, ENV_INPUTS["common"]["vpc_name"], session
-#     )
-#     common_subnets = resolve_subnet_ids(common_region, common_vpc, session)
-#
-#     for env in COMMON_ENVS:
-#         env_config[env] = {
-#             "region": common_region,
-#             "vpc_id": common_vpc_id,
-#             "subnets": common_subnets,
-#         }
-#
-#     # UAT (different VPC, same region)
-#     uat_region = ENV_INPUTS["uat"]["region"]
-#
-#     uat_vpc_id = resolve_vpc_id(uat_region, ENV_INPUTS["uat"]["vpc_name"], session)
-#     uat_subnets = resolve_subnet_ids(uat_region, uat_vpc, session)
-#
-#     env_config["uat"] = {
-#         "region": uat_region,
-#         "vpc_id": uat_vpc_id,
-#         "subnets": uat_subnets,
-#     }
-#
-#     # DR (different region + VPC)
-#     dr_region = ENV_INPUTS["dr"]["region"]
-#
-#     # vpcs = get_vpcs_list(dr_region)
-#     # print(json.dumps(vpcs, indent=2))
-#
-#     dr_vpc_id = resolve_vpc_id(dr_region, ENV_INPUTS["dr"]["vpc_name"], session)
-#     dr_subnets = resolve_subnet_ids(dr_region, dr_vpc, session)
-#
-#     env_config["dr"] = {
-#         "region": dr_region,
-#         "vpc_id": dr_vpc_id,
-#         "subnets": dr_subnets,
-#     }
-#
-#     return env_config
-#
-#
-
-# def build_env_config(session):
-#
-#     env_config = {}
-#
-#     # Common VPC for most envs
-#     common_region = ENV_INPUTS["common"]["region"]
-#
-#     # vpcs = get_vpcs_list(common_region, session)
-#     # print(json.dumps(vpcs, indent=2))
-#
-#     common_vpc, uat_vpc, dr_vpc = fill_vpc_config(session)
-#
-#     common_vpc_id = resolve_vpc_id(
-#         common_region, ENV_INPUTS["common"]["vpc_name"], session
-#     )
-#     common_subnets = resolve_subnet_ids(common_region, common_vpc, session)
-#
-#     for env in COMMON_ENVS:
-#         env_config[env] = {
-#             "region": common_region,
-#             "vpc_id": common_vpc_id,
-#             "subnets": common_subnets,
-#         }
-#
-#     # UAT (different VPC, same region)
-#     uat_region = ENV_INPUTS["uat"]["region"]
-#
-#     uat_vpc_id = resolve_vpc_id(uat_region, ENV_INPUTS["uat"]["vpc_name"], session)
-#     uat_subnets = resolve_subnet_ids(uat_region, uat_vpc, session)
-#
-#     env_config["uat"] = {
-#         "region": uat_region,
-#         "vpc_id": uat_vpc_id,
-#         "subnets": uat_subnets,
-#     }
-#
-#     # DR (different region + VPC)
-#     dr_region = ENV_INPUTS["dr"]["region"]
-#
-#     # vpcs = get_vpcs_list(dr_region)
-#     # print(json.dumps(vpcs, indent=2))
-#
-#     dr_vpc_id = resolve_vpc_id(dr_region, ENV_INPUTS["dr"]["vpc_name"], session)
-#     dr_subnets = resolve_subnet_ids(dr_region, dr_vpc, session)
-#
-#     env_config["dr"] = {
-#         "region": dr_region,
-#         "vpc_id": dr_vpc_id,
-#         "subnets": dr_subnets,
-#     }
-#
-#     return env_config
 
 def get_role_arn(session, role_name):
     iam = session.client("iam")
@@ -561,46 +335,10 @@ def create_lambda(
             ReservedConcurrentExecutions=reserved_concurrency["val"]
         )
 
-def get_or_create_sg(session, region, vpc_id, lambda_name):
-    ec2 = session.client("ec2", region_name=region)
-    sg_name = f"{lambda_name}-sg"
 
-    sgs = ec2.describe_security_groups(
-        Filters=[
-            {"Name": "group-name", "Values": [sg_name]},
-            {"Name": "vpc-id", "Values": [vpc_id]},
-        ]
-    )["SecurityGroups"]
-
-    if sgs:
-        return sgs[0]["GroupId"]
-
-    sg = ec2.create_security_group(
-        GroupName=sg_name,
-        Description=f"SG for {lambda_name}",
-        VpcId=vpc_id,
-    )
-    return sg["GroupId"]
 
 
 def main():
-
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--phase", choices=["vpc_selection", "subnet_selection", "finalize"], required=True,
-    #                     help="Pipeline execution phase")
-    # args = parser.parse_args()
-    #
-    # profile_name = "Aditya-demo"
-    #
-    # session = boto3.Session(profile_name=profile_name)
-    #
-    # ENV_CONFIG = {}
-    #
-    # if args.phase == "vpc_selection":
-    #
-    #     ENV_CONFIG = build_env_config(session)
-    #
-    #     print(json.dumps(ENV_CONFIG, indent=2))
 
     args = parse_args()
     session = boto3.Session(profile_name="Aditya-demo")
