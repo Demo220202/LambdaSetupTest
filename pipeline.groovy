@@ -40,7 +40,6 @@ pipeline {
                 sh """
 
                     . venvlambda/bin/activate
-                    pip install -r requirements.txt
                     python lambdaCreationAutomationAllEnvs3.py --phase vpc_selection
                 """
             }
