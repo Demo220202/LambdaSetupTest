@@ -1,12 +1,6 @@
 pipeline {
     agent any
-//     agent { label 'master' }
 
-//     environment {
-// //         SONAR_API_TOKEN = credentials('sonar-api-token')
-//         GITHUB_TOKEN    = credentials('GH_PAT_WITH_ACCESS_TO_OTHER_REPOS')
-//         PATH = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"
-//     }
 
     stages {
 
