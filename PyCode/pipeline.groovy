@@ -172,7 +172,7 @@ pipeline {
             dir('PyCode'){
                sh """
                    . venvlambda/bin/activate
-                   python -u lambdaCreationRevert.py --lambda_name $lambda_name'
+                   python -u lambdaCreationRevert.py --lambda_name '$lambda_name'
 
                """
             }
