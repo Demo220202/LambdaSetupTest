@@ -639,9 +639,8 @@ def main():
         timeout = args.timeout
         ephemeral_storage = args.ephemeral_storage
 
-        layers = args.layers.split() if len(args.layers) > 1 else []
+        layers = args.layers[0].split() if len(args.layers) > 1 else []
         print(layers)
-        print(args.layers)
 
         layer_list = []
         for layer_name in layers:
