@@ -159,4 +159,24 @@ pipeline {
         }
 
     }
+
+    post {
+        success {
+            dir('PyCode') {
+                sh """
+                   echo "Successfully Created lambdas, ab ghar jaao!"
+               """
+            }
+        }
+        failure {
+            dir('PyCode'){
+               sh """
+                   . venvlambda/bin/activate
+                   python -u lambdaCreationRevert.py --lambda_name $lambda_name'
+
+               """
+            }
+        }
+    }
+
 }
