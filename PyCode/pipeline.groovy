@@ -7,6 +7,19 @@ pipeline {
         stage('Step 0: VPC Listing') {
             steps {
 
+                script {
+                    def region = input(
+                        id: 'firstInput',
+                        message: 'Paste the Region Name',
+                        parameters: [
+                            string(name: 'REGION', description: 'Enter the Region')
+                        ]
+                    )
+
+                    env.REGION = region.toString()
+                }
+
+
                 dir("PyCode") {
 
                     sh """

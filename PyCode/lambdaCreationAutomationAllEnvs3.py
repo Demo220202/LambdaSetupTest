@@ -12,6 +12,22 @@ load_dotenv()
 
 STATE_FILE = "env_inputs.json"
 
+def select_state_file(region):
+
+    state_file = ""
+    if region == "us-west-1":
+        state_file = "env_inputs_usw1.json"
+    elif region == "us-west-2":
+        state_file = "env_inputs_usw2.json"
+    elif region == "eu-west-1":
+        state_file = "env_inputs_euw1.json"
+
+    return state_file
+
+region = os.environ.get("REGION", "us-west-1")
+
+STATE_FILE = select_state_file(region) if region != "" else STATE_FILE
+
 def load_state():
     global ENV_INPUTS
     if os.path.exists(STATE_FILE):
