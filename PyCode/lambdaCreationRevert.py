@@ -105,6 +105,9 @@ def wait_for_sg_detach(ec2, sg_id):
 
 
 def delete_security_group(ec2, vpc_id, sg_name):
+
+    sg_name = f"{sg_name}-sg"
+
     try:
         response = ec2.describe_security_groups(
             Filters=[
@@ -145,7 +148,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    session = boto3.Session()
+    session = boto3.Session(profile_name="Aditya-demo")
 
     region = os.environ.get("REGION", "us-west-1")
 
