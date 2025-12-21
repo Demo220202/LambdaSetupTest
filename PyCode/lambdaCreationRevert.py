@@ -83,25 +83,32 @@ def delete_lambda(lambda_client, function_name):
         print(f"[SKIP] Lambda not found: {function_name}")
 
 
-def wait_for_sg_detach(ec2, sg_id):
-    """
-    Lambda ENIs take time to detach after deletion.
-    """
+def wait_for_sg_detach(ec2, sg_id, max_wait_minutes=20):
+
     print(f"  └─ Waiting for ENIs to detach from SG {sg_id}")
 
-    for _ in range(30):
+    max_attempts = max_wait_minutes * 6  # 10s sleep
+
+    for i in range(max_attempts):
         response = ec2.describe_network_interfaces(
-            Filters=[
-                {"Name": "group-id", "Values": [sg_id]}
-            ]
+            Filters=[{"Name": "group-id", "Values": [sg_id]}]
         )
 
         if not response["NetworkInterfaces"]:
-            return
+            print("  └─ ENIs detached")
+            return True
+
+        if i % 30 == 0:
+            print(f"  └─ Still waiting... ({i * 10}s elapsed)")
 
         time.sleep(10)
 
-    raise Exception(f"Timeout waiting for ENIs to detach from {sg_id}")
+    print(
+        f" ENIs still attached after {max_wait_minutes} minutes. "
+        f"Skipping SG deletion."
+    )
+    return False
+
 
 
 def delete_security_group(ec2, vpc_id, sg_name):
@@ -122,7 +129,10 @@ def delete_security_group(ec2, vpc_id, sg_name):
 
         sg_id = response["SecurityGroups"][0]["GroupId"]
 
-        wait_for_sg_detach(ec2, sg_id)
+        detached = wait_for_sg_detach(ec2, sg_id)
+
+        if not detached:
+            return  # DO NOT FAIL PIPELINE
 
         ec2.delete_security_group(GroupId=sg_id)
         print(f"[DELETE SG] {sg_name} ({sg_id})")
