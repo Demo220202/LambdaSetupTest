@@ -1,0 +1,14 @@
+{
+    "common": {
+        "region": "eu-west-1",
+        "vpc_name": "zen-common-vpc"
+    },
+    "uat": {
+        "region": "eu-west-1",
+        "vpc_name": "zen-uat-vpc"
+    },
+    "dr": {
+        "region": "eu-west-1",
+        "vpc_name": "zen-dr-vpc"
+    }
+}

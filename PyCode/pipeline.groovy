@@ -1,0 +1,182 @@
+pipeline {
+    agent any
+
+
+    stages {
+
+        stage('Step 0: VPC Listing') {
+            steps {
+
+                script {
+                    def region = input(
+                        id: 'firstInput',
+                        message: 'Paste the Region Name',
+                        parameters: [
+                            string(name: 'REGION', description: 'Enter the Region')
+                        ]
+                    )
+
+                    env.REGION = region.toString()
+                }
+
+
+                dir("PyCode") {
+
+                    sh """
+                        python3 -m venv venvlambda
+                        . venvlambda/bin/activate
+                        pip install -r requirements.txt
+                        python -u lambdaCreationAutomationAllEnvs3.py --phase vpc_listing
+                    """
+
+                }
+            }
+        }
+
+        stage('Step 1: VPC Selection') {
+            steps {
+
+                script {
+                    def vpcId = input(
+                        id: 'firstInput',
+                        message: 'Paste the VPC ids in order - common, uat, dr',
+                        parameters: [
+                            text(name: 'VPC_ID', description: 'Enter VPC ids')
+                        ]
+                    )
+
+                    env.VPC_ID = vpcId.toString()
+                }
+
+                dir("PyCode") {
+
+                    sh """
+
+                        . venvlambda/bin/activate
+                        python -u lambdaCreationAutomationAllEnvs3.py --phase vpc_selection
+                    """
+
+                }
+
+            }
+        }
+
+        stage('Step 2: Subnets ids Listing') {
+            steps {
+
+                dir("PyCode") {
+
+                    sh """
+                        . venvlambda/bin/activate
+                        python -u lambdaCreationAutomationAllEnvs3.py \
+                            --phase subnet_listing
+                    """
+
+                }
+
+            }
+        }
+
+        stage('Step 3: Subnets ids Selection') {
+            steps {
+                script {
+                    def subnetIds = input(
+                        id: 'secondInput',
+                        message: 'Paste the Subnet ids Common VPC',
+                        parameters: [
+                            text(name: 'SUBNET_IDS for Common VPC', description: 'Enter Subnet ids')
+                        ]
+                    )
+
+                    env.COMMON_SUBNETS = subnetIds.toString()
+                }
+
+                script {
+                    def subnetIds = input(
+                        id: 'secondInput',
+                        message: 'Paste the Subnet ids UAT VPC',
+                        parameters: [
+                            text(name: 'SUBNET_IDS for UAT VPC', description: 'Enter Subnet ids')
+                        ]
+                    )
+
+                    env.UAT_SUBNETS = subnetIds.toString()
+                }
+
+                script {
+                    def subnetIds = input(
+                        id: 'secondInput',
+                        message: 'Paste the Subnet ids for DR VPC',
+                        parameters: [
+                            text(name: 'SUBNET_IDS for DR VPC', description: 'Enter Subnet ids')
+                        ]
+                    )
+
+                    env.DR_SUBNETS = subnetIds.toString()
+                }
+
+                dir("PyCode") {
+
+                    sh """
+                        . venvlambda/bin/activate
+                        python -u lambdaCreationAutomationAllEnvs3.py \
+                            --phase subnet_selection
+                    """
+
+                }
+
+            }
+        }
+
+        stage('Step 4: Approval for Lambda Creation') {
+            steps {
+                script {
+                    // Only waits for human approval
+                    def approval = input(
+                        id: 'approvalInput',
+                        message: 'Do you want to proceed with lambda setup?',
+                        parameters: [
+                            choice(name: 'PROCEED', choices: ['Yes', 'No'], description: 'Select Yes to continue')
+                        ]
+                    )
+
+                    if (approval == 'No') {
+                        error "Lambda setup aborted by user."
+                    }
+                }
+
+                dir("PyCode") {
+
+                    sh """
+                        . venvlambda/bin/activate
+                        python -u lambdaCreationAutomationAllEnvs3.py --lambda_name '$lambda_name' --runtime '$runtime' --role_name '$role_name' --memory $memory --timeout $timeout --ephemeral_storage $ephemeral_storage --layers '$layers' --enable_reserved_concurrency '$enable_reserved_concurrency' --reserved_concurrency '$reserved_concurrency' --phase finalize
+                    """
+
+                }
+
+
+            }
+        }
+
+    }
+
+    post {
+        success {
+            dir('PyCode') {
+                sh """
+                   echo "Successfully Created lambdas, ab ghar jaao!"
+               """
+            }
+        }
+        failure {
+            dir('PyCode'){
+               sh """
+                   . venvlambda/bin/activate
+                   python -u lambdaCreationRevert.py --lambda_name '$lambda_name'
+
+               """
+            }
+        }
+    }
+
+}
